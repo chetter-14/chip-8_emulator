@@ -1,4 +1,5 @@
 #include "chip8.h"
+#include <cstdio>
 
 // Initialize registers, timers, memory, etc.
 void chip8::initialize()
@@ -29,6 +30,19 @@ void chip8::initialize()
         memory[i] = fontset[i];
 
     // reset timers
+}
+
+void chip8::loadGame(const char* gameFileName)
+{
+    FILE* fp = fopen(gameFileName, "rb");
+    
+    // get the size of file
+    fseek(fp, 0L, SEEK_END);
+    int size = ftell(fp);
+    fseek(fp, 0L, SEEK_SET);
+    
+    for (int i = 0; i < size; i++)
+        memory[i + 0x0200] = 
 }
 
 void chip8::executeCycle()
