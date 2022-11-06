@@ -24,7 +24,9 @@ void chip8::initialize()
     for (int i = 0; i < MEMORY_SIZE; i++)
         memory[i] = 0;
 
-    // load fontset
+    // load fontset (in memory: 0x0000 - 0x0050)
+    for (int i = 0; i < FONTSET_SIZE; i++)
+        memory[i] = fontset[i];
 
     // reset timers
 }
