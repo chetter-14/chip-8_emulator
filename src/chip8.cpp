@@ -1,5 +1,6 @@
 #include "chip8.h"
 #include <cstdio>
+#include <vector>
 
 // Initialize registers, timers, memory, etc.
 void chip8::initialize()
@@ -41,8 +42,13 @@ void chip8::loadGame(const char* gameFileName)
     int size = ftell(fp);
     fseek(fp, 0L, SEEK_SET);
     
+    std::vector<uint8_t> buffer(1024);   // we suggest the size of the program is 1 kB 
+    std::fread(&buffer[0], sizeof(buffer[0]), size, fp);
+
     for (int i = 0; i < size; i++)
-        memory[i + 0x0200] = 
+        memory[i + 0x0200] = buffer[i];
+
+    
 }
 
 void chip8::executeCycle()
