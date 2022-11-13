@@ -49,15 +49,15 @@ private:
     uint16_t pc;    // program counter
 
     // graphics; monochrome 64x32 pixels screen
-    uint8_t gfx[GRAPHICS_PIXEL_RESOL];
+    uint8_t displayScreen[GRAPHICS_PIXEL_RESOL];
 
     // timers
     uint8_t delayTimer;
     uint8_t soundTimer;
 
-    // 16 stack levels and stack pointer on each; sp - to return to the caller.
+    // 16 stack levels and each stores an address to return to; stackLevel - on which level of stack we are now.
     uint16_t stack[STACK_LEVELS];
-    uint16_t sp;
+    uint8_t stackLevel;
 
     // input keys
     uint8_t key[KEYS_NUMBER];

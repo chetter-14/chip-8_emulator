@@ -8,11 +8,11 @@ void chip8::initialize()
     pc = 0x0200;    // program is placed at 0x0200 
     opcode = 0;
     I = 0;
-    sp = 0;
+    stackLevel = 0;
 
     // clear display
     for (int i = 0; i < GRAPHICS_PIXEL_RESOL; i++)
-        gfx[i] = 0;
+        displayScreen[i] = 0;
     
     // clear stack array
     for (int i = 0; i < STACK_LEVELS; i++)
@@ -61,67 +61,95 @@ void chip8::executeCycle()
             switch (opcode & 0x00FF) 
             {
                 case 0x00E0:    // 0x00E0 clears the screen
-
+                    for (int i = 0; i < GRAPHICS_PIXEL_RESOL; i++)
+                        displayScreen[i] = 0;
                     break;
                 
                 case 0x00EE:    // 0x00EE returns from a subroutine
-
+                    pc = stack[--stackLevel];
                     break;
 
                 default:        // 0x0NNN call machine code routine at address NNN
-
+                    stack[stackLevel++] = pc + 2;
+                    pc = opcode & 0x0FFF;
+                    break;
             }
             break;
 
-        case 0x1000:            // 0x1NNN jumps to address NNN
-
+        case 0x1000:            // 0x1NNN JUMPS to address NNN
+            pc = opcode & 0x0FFF;
             break;
 
-        case 0x2000:            // 0x2NNN calls a subroutine at NNN
-
+        case 0x2000:            // 0x2NNN CALLS a subroutine at NNN
+            stack[stackLevel++] = pc + 2;
+            pc = opcode & 0x0FFF;
             break;
 
         case 0x3000:            // 0x3XNN skips the next instruction if VX == NN
-
+            uint8_t regNumber = (opcode & 0x0F00) >> 2;
+            uint8_t numberToCompare = opcode & 0x00FF;
+            if ( V[regNumber] == numberToCompare )
+                pc += 2;
             break;
 
         case 0x4000:            // 0x4XNN skips the next instruction if VX != NN
-
+            uint8_t regNumber = (opcode & 0x0F00) >> 2;
+            uint8_t numberToCompare = opcode & 0x00FF;
+            if ( V[regNumber] != numberToCompare )
+                pc += 2;
             break;
 
         case 0x5000:            // 0x5XY0 skips the next instruction if VX != VY
-
+            uint8_t regNumberX = (opcode & 0x0F00) >> 2;
+            uint8_t regNumberY = (opcode & 0x00F0) >> 1;
+            if ( V[regNumberX] != V[regNumberY] )
+                pc += 2;
             break;
 
         case 0x6000:            // 0x6XNN sets VX to NN
-
+            uint8_t regNumber = (opcode & 0x0F00) >> 2;
+            V[regNumber] = opcode & 0x00FF;
             break;
 
         case 0x7000:            // 0x7XNN adds NN to VX (carry flag is not set)
-
+            uint8_t regNumber = (opcode & 0x0F00) >> 2;
+            V[regNumber] = V[regNumber] + opcode & 0x00FF;
             break;
 
         case 0x8000:
             switch (opcode & 0x000F) 
             {
                 case 0x0000:    // 0x8XY0 sets VX to the value of VY
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 2;
+                    uint8_t regNumberY = (opcode & 0x00F0) >> 1;
+                    V[regNumberX] = V[regNumberY];
                     break;
                 
                 case 0x0001:    // 0x8XY1 sets VX to VX or VY (bitwise OR)
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 2;
+                    uint8_t regNumberY = (opcode & 0x00F0) >> 1;
+                    V[regNumberX] |= V[regNumberY];
                     break;
 
                 case 0x0002:    // 0x8XY2 sets VX to VX and VY (bitwise AND)
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 2;
+                    uint8_t regNumberY = (opcode & 0x00F0) >> 1;
+                    V[regNumberX] &= V[regNumberY];
                     break;
 
                 case 0x0003:    // 0x8XY3 sets VX to VX xor VY (bitwise XOR)
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 2;
+                    uint8_t regNumberY = (opcode & 0x00F0) >> 1;
+                    V[regNumberX] ^= V[regNumberY];
                     break;
                 
                 case 0x0004:    // 0x8XY4 adds VY to VX (carry flag is set)
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 2;
+                    uint8_t regNumberY = (opcode & 0x00F0) >> 1;
+                    // int16_t res = V[regNumberX] + V[regNumberY];
+                    // if (res & 0xFF00 > 0)
+                    //     V[REGS_NUMBER - 1] = (res & 0xFF00) >> 8;
+                    // V[regNumberX] = (res & 0x00FF);
                     break;
 
                 case 0x0005:    // 0x8XY5 VY is subtracted from VX (with flag)
