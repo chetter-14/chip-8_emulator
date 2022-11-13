@@ -1,6 +1,8 @@
 #include "chip8.h"
 #include <cstdio>
 #include <vector>
+#include <cstdlib>
+#include <ctime>
 
 // Initialize registers, timers, memory, etc.
 void chip8::initialize()
@@ -51,6 +53,8 @@ void chip8::loadGame(const char* gameFileName)
 
 void chip8::executeCycle()
 {
+    srand(time(0));
+
     // read 2-byte opcode at the address of program counter
     opcode = (memory[pc] << 8) | memory[pc + 1];
 
@@ -63,6 +67,7 @@ void chip8::executeCycle()
                 case 0x00E0:    // 0x00E0 clears the screen
                     for (int i = 0; i < GRAPHICS_PIXEL_RESOL; i++)
                         displayScreen[i] = 0;
+                    pc += 2;
                     break;
                 
                 case 0x00EE:    // 0x00EE returns from a subroutine
@@ -86,86 +91,117 @@ void chip8::executeCycle()
             break;
 
         case 0x3000:            // 0x3XNN skips the next instruction if VX == NN
-            uint8_t regNumber = (opcode & 0x0F00) >> 2;
+            uint8_t regNumber = (opcode & 0x0F00) >> 8;
             uint8_t numberToCompare = opcode & 0x00FF;
             if ( V[regNumber] == numberToCompare )
                 pc += 2;
+            pc += 2;
             break;
 
         case 0x4000:            // 0x4XNN skips the next instruction if VX != NN
-            uint8_t regNumber = (opcode & 0x0F00) >> 2;
+            uint8_t regNumber = (opcode & 0x0F00) >> 8;
             uint8_t numberToCompare = opcode & 0x00FF;
             if ( V[regNumber] != numberToCompare )
                 pc += 2;
+            pc += 2;
             break;
 
         case 0x5000:            // 0x5XY0 skips the next instruction if VX != VY
-            uint8_t regNumberX = (opcode & 0x0F00) >> 2;
-            uint8_t regNumberY = (opcode & 0x00F0) >> 1;
+            uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+            uint8_t regNumberY = (opcode & 0x00F0) >> 4;
             if ( V[regNumberX] != V[regNumberY] )
                 pc += 2;
+            pc += 2;
             break;
 
         case 0x6000:            // 0x6XNN sets VX to NN
-            uint8_t regNumber = (opcode & 0x0F00) >> 2;
+            uint8_t regNumber = (opcode & 0x0F00) >> 8;
             V[regNumber] = opcode & 0x00FF;
+            pc += 2;
             break;
 
         case 0x7000:            // 0x7XNN adds NN to VX (carry flag is not set)
-            uint8_t regNumber = (opcode & 0x0F00) >> 2;
+            uint8_t regNumber = (opcode & 0x0F00) >> 8;
             V[regNumber] = V[regNumber] + opcode & 0x00FF;
+            pc += 2;
             break;
 
         case 0x8000:
             switch (opcode & 0x000F) 
             {
                 case 0x0000:    // 0x8XY0 sets VX to the value of VY
-                    uint8_t regNumberX = (opcode & 0x0F00) >> 2;
-                    uint8_t regNumberY = (opcode & 0x00F0) >> 1;
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    uint8_t regNumberY = (opcode & 0x00F0) >> 4;
                     V[regNumberX] = V[regNumberY];
+                    pc += 2;
                     break;
                 
                 case 0x0001:    // 0x8XY1 sets VX to VX or VY (bitwise OR)
-                    uint8_t regNumberX = (opcode & 0x0F00) >> 2;
-                    uint8_t regNumberY = (opcode & 0x00F0) >> 1;
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    uint8_t regNumberY = (opcode & 0x00F0) >> 4;
                     V[regNumberX] |= V[regNumberY];
+                    pc += 2;
                     break;
 
                 case 0x0002:    // 0x8XY2 sets VX to VX and VY (bitwise AND)
-                    uint8_t regNumberX = (opcode & 0x0F00) >> 2;
-                    uint8_t regNumberY = (opcode & 0x00F0) >> 1;
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    uint8_t regNumberY = (opcode & 0x00F0) >> 4;
                     V[regNumberX] &= V[regNumberY];
+                    pc += 2;
                     break;
 
                 case 0x0003:    // 0x8XY3 sets VX to VX xor VY (bitwise XOR)
-                    uint8_t regNumberX = (opcode & 0x0F00) >> 2;
-                    uint8_t regNumberY = (opcode & 0x00F0) >> 1;
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    uint8_t regNumberY = (opcode & 0x00F0) >> 4;
                     V[regNumberX] ^= V[regNumberY];
+                    pc += 2;
                     break;
                 
                 case 0x0004:    // 0x8XY4 adds VY to VX (carry flag is set)
-                    uint8_t regNumberX = (opcode & 0x0F00) >> 2;
-                    uint8_t regNumberY = (opcode & 0x00F0) >> 1;
-                    // int16_t res = V[regNumberX] + V[regNumberY];
-                    // if (res & 0xFF00 > 0)
-                    //     V[REGS_NUMBER - 1] = (res & 0xFF00) >> 8;
-                    // V[regNumberX] = (res & 0x00FF);
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    uint8_t regNumberY = (opcode & 0x00F0) >> 4;
+                    if ( V[regNumberX] > (0xFF - V[regNumberY]) )
+                        V[0xF] = 1;
+                    else 
+                        V[0xF] = 0;
+                    V[regNumberX] += V[regNumberY];
+                    pc += 2;
                     break;
 
-                case 0x0005:    // 0x8XY5 VY is subtracted from VX (with flag)
-
+                case 0x0005:    // 0x8XY5 VY is subtracted from VX (with "no borrow" flag)
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    uint8_t regNumberY = (opcode & 0x00F0) >> 4;
+                    if ( V[regNumberX] < V[regNumberY] )
+                        V[0xF] = 0;
+                    else
+                        V[0xF] = 1;
+                    V[regNumberX] -= V[regNumberY];
+                    pc += 2;
                     break;
 
                 case 0x0006:    // 0x8XY6 stores the least significant bit of VX in VF and then shifts VX to the right by 1
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    V[0xF] = V[regNumberX] & 0x01;
+                    V[regNumberX] >>= 1;
+                    pc += 2;
                     break;
 
-                case 0x0007:    // 0x8XY7 sets VX to VY minus VX (with flag)
-
+                case 0x0007:    // 0x8XY7 sets VX to VY minus VX (with "no borrow" flag)
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    uint8_t regNumberY = (opcode & 0x00F0) >> 4;
+                    if ( V[regNumberY] < V[regNumberX] )
+                        V[0xF] = 0;
+                    else
+                        V[0xF] = 1;
+                    V[regNumberX] = V[regNumberY] - V[regNumberX];
+                    pc += 2;
                     break;
 
                 case 0x000E:    // 0x8XYE stores the most significant bit of VX in VF and then shifts VX to the left by 1
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    V[0xF] = (V[regNumberX] & 0x80) >> 7;
+                    V[regNumberX] <<= 1;
+                    pc += 2;
                     break;
                 
                 default:
@@ -174,7 +210,11 @@ void chip8::executeCycle()
             break;
 
         case 0x9000:            // 0x9XY0 skips the next instruction if VX does not equal VY
-
+            uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+            uint8_t regNumberY = (opcode & 0x00F0) >> 4;
+            if ( V[regNumberX] != V[regNumberY] )
+                pc += 2;
+            pc += 2;
             break;
 
         case 0xA000:            // 0xANNN sets I to the address NNN
@@ -183,11 +223,13 @@ void chip8::executeCycle()
             break;
 
         case 0xB000:            // 0xBNNN jumps to the address NNN plus V0
-
+            pc = (opcode & 0x0FFF) + V[0];
             break;
 
         case 0xC000:            // 0xCXNN sets VX to the result of a bitwise AND operation on a random number (Typically: 0 to 255) and NN
-
+            uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+            V[regNumberX] = (opcode & 0x00FF) & (uint8_t)(rand() % 255);
+            pc += 2;
             break;
         
         case 0xD000:            // 0xDXYN draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels
@@ -211,7 +253,9 @@ void chip8::executeCycle()
             switch (opcode & 0x00FF)
             {
                 case 0x0007:    // 0xFX07 sets VX to the value of the delay timer
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    V[regNumberX] = delayTimer;
+                    pc += 2;
                     break;
 
                 case 0x000A:    // 0xFX0A a key press is awaited, and then stored in VX
@@ -219,15 +263,21 @@ void chip8::executeCycle()
                     break;
 
                 case 0x0015:    // 0xFX15 sets the delay timer to VX
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    delayTimer = V[regNumberX];
+                    pc += 2;
                     break;
 
                 case 0x0018:    // 0xFX18 sets the sound timer to VX
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    soundTimer = V[regNumberX];
+                    pc += 2;
                     break;
                 
                 case 0x001E:    // 0xFX1E adds VX to I (no carry flag)
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    I += V[regNumberX];
+                    pc += 2;
                     break;
                 
                 case 0x0029:    // 0xFX29 sets I to the location of the sprite for the character in VX
