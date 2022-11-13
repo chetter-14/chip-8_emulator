@@ -233,18 +233,51 @@ void chip8::executeCycle()
             break;
         
         case 0xD000:            // 0xDXYN draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels
+            uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+            uint8_t regNumberY = (opcode & 0x00F0) >> 4;
 
+            uint8_t x = V[regNumberX];
+            uint8_t y = V[regNumberY];
+
+            uint8_t height = opcode & 0x000F;
+            uint8_t pixel;  // one row of 8 pixels
+
+            V[0xF] = 0;
+            for (int yLine = 0; yLine < height; yLine++)
+            {
+                pixel = memory[I + yLine];
+                for (int xLine = 0; xLine < 8; xLine++)
+                {
+                    if ( (pixel & (0x80 >> xLine) ) != 0)
+                    {
+                        if (displayScreen[ ( (y + yLine) * DISPLAY_HEIGHT_PIXELS + x + xLine) % GRAPHICS_PIXEL_RESOL] == 1)
+                            V[0xF] = 1;
+                        displayScreen[ ( (y + yLine) * DISPLAY_HEIGHT_PIXELS + x + xLine) % GRAPHICS_PIXEL_RESOL] ^= 1 /* (pixel & (0x80 >> xLine) ) */;
+                    }
+                }
+            }
+
+            drawFlag = true;
+            pc += 2;
             break;
 
         case 0xE000:
             switch (opcode & 0x00F0) 
             {
                 case 0x0090:    // 0xEX9E skips the next instruction if the key stored in VX is pressed
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    if (key[ V[regNumberX] ] != 0)
+                        pc += 4;
+                    else
+                        pc += 2;
                     break;
 
                 case 0x00A0:    // 0xEXA1 skips the next instruction if the key stored in VX is not pressed
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    if (key[ V[regNumberX] ] == 0)
+                        pc += 4;
+                    else
+                        pc += 2;
                     break;
             }
             break;
@@ -259,7 +292,17 @@ void chip8::executeCycle()
                     break;
 
                 case 0x000A:    // 0xFX0A a key press is awaited, and then stored in VX
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    for (int i = 0; i < KEYS_NUMBER; i++)
+                    {
+                        if (key[i] != 0)
+                        {
+                            V[regNumberX] = i;
+                            break;
+                        }
+                        if (i == KEYS_NUMBER - 1)
+                            i = -1;
+                    }
                     break;
 
                 case 0x0015:    // 0xFX15 sets the delay timer to VX
@@ -281,19 +324,35 @@ void chip8::executeCycle()
                     break;
                 
                 case 0x0029:    // 0xFX29 sets I to the location of the sprite for the character in VX
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    I = V[regNumberX] * 0x5;    // didn't get it
+                    pc += 2;
                     break;
 
                 case 0x0033:    // 0xFX33 stores the binary-coded decimal representation of VX
-
+                    uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    memory[I + 0] = V[regNumberX] / 100;
+                    memory[I + 1] = V[regNumberX] / 10 % 10;
+                    memory[I + 2] = V[regNumberX] % 10;
+                    pc += 2;
                     break;
 
                 case 0x0055:    // 0xFX55 stores from V0 to VX (including VX) in memory, starting at address I
-
+                    int8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    for (int i = 0; i <= regNumberX; i++)
+                    {
+                        memory[I + i] = V[i];
+                    }
+                    pc += 2;
                     break;
 
                 case 0x0065:    // 0xFX65 fills from V0 to VX (including VX) with values from memory, starting at address I
-
+                    int8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    for (int i = 0; i <= regNumberX; i++)
+                    {
+                        V[i] = memory[I + i];
+                    }
+                    pc += 2;
                     break;
             }
             break;

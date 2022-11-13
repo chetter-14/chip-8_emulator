@@ -7,6 +7,7 @@
 #define MEMORY_SIZE 4096
 #define REGS_NUMBER 16
 #define GRAPHICS_PIXEL_RESOL 64 * 32
+#define DISPLAY_HEIGHT_PIXELS 64
 #define STACK_LEVELS 16
 #define KEYS_NUMBER 16
 
@@ -61,6 +62,9 @@ private:
 
     // input keys
     uint8_t key[KEYS_NUMBER];
+
+public:
+    bool drawFlag;
 
 public:
     chip8() { }
