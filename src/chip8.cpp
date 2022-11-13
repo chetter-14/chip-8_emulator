@@ -165,7 +165,60 @@ void chip8::executeCycle()
         case 0xD000:            // 0xDXYN draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels
 
             break;
-        // more opcodes
+
+        case 0xE000:
+            switch (opcode & 0x00F0) 
+            {
+                case 0x0090:    // 0xEX9E skips the next instruction if the key stored in VX is pressed
+
+                    break;
+
+                case 0x00A0:    // 0xEXA1 skips the next instruction if the key stored in VX is not pressed
+
+                    break;
+            }
+            break;
+
+        case 0xF000:
+            switch (opcode & 0x00FF)
+            {
+                case 0x0007:    // 0xFX07 sets VX to the value of the delay timer
+
+                    break;
+
+                case 0x000A:    // 0xFX0A a key press is awaited, and then stored in VX
+
+                    break;
+
+                case 0x0015:    // 0xFX15 sets the delay timer to VX
+
+                    break;
+
+                case 0x0018:    // 0xFX18 sets the sound timer to VX
+
+                    break;
+                
+                case 0x001E:    // 0xFX1E adds VX to I (no carry flag)
+
+                    break;
+                
+                case 0x0029:    // 0xFX29 sets I to the location of the sprite for the character in VX
+
+                    break;
+
+                case 0x0033:    // 0xFX33 stores the binary-coded decimal representation of VX
+
+                    break;
+
+                case 0x0055:    // 0xFX55 stores from V0 to VX (including VX) in memory, starting at address I
+
+                    break;
+
+                case 0x0065:    // 0xFX65 fills from V0 to VX (including VX) with values from memory, starting at address I
+
+                    break;
+            }
+            break;
 
         default:
             printf("Unknown opcode: 0x%04X\n", opcode);
