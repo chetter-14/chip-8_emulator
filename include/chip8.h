@@ -49,9 +49,6 @@ private:
     uint16_t I;     // index register
     uint16_t pc;    // program counter
 
-    // graphics; monochrome 64x32 pixels screen
-    uint8_t displayScreen[GRAPHICS_PIXEL_RESOL];
-
     // timers
     uint8_t delayTimer;
     uint8_t soundTimer;
@@ -60,11 +57,14 @@ private:
     uint16_t stack[STACK_LEVELS];
     uint8_t stackLevel;
 
-    // input keys
-    uint8_t key[KEYS_NUMBER];
-
 public:
     bool drawFlag;
+
+    // graphics; monochrome 64x32 pixels screen
+    uint8_t displayScreen[GRAPHICS_PIXEL_RESOL];
+    
+    // input keys
+    uint8_t key[KEYS_NUMBER];
 
 public:
     chip8() { }
