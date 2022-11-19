@@ -3,6 +3,8 @@
 #include <vector>
 #include <cstdlib>
 #include <ctime>
+#include <iostream>
+
 
 // Initialize registers, timers, memory, etc.
 void chip8::initialize()
@@ -33,31 +35,55 @@ void chip8::initialize()
         memory[i] = fontset[i];
 
     // reset timers
+    delayTimer = 0;
+    soundTimer = 0;
+
+    drawFlag = true;
+
+    // for 0xCXNN opcode 
+    srand(time(0));
 }
 
-void chip8::loadGame(const char* gameFileName)
+bool chip8::loadGame(const char* gameFileName)
 {
+    initialize();
     FILE* fp = fopen(gameFileName, "rb");
+    if (fp == NULL)
+    {
+        std::cerr << "Failed to open the file!\n";
+        return false;
+    }
     
     // get the size of file
     fseek(fp, 0L, SEEK_END);
     int size = ftell(fp);
     fseek(fp, 0L, SEEK_SET);
+    std::cout << "Filesize: " << size << "\n";
     
     uint8_t* buffer = (uint8_t*)malloc(size);
+    if (buffer == NULL)
+    {
+        std::cerr << "Failed to allocate memory for buffer.\n";
+        return false;
+    }
     std::fread(&buffer[0], sizeof(buffer[0]), size, fp);
 
+    if (size > (0x1000 - 0x0200)) 
+    {
+        std::cerr << "Application ROM is too big.\n";
+        return false;
+    }
     for (int i = 0; i < size; i++)
         memory[i + 0x0200] = buffer[i];
 
     free(buffer);
     fclose(fp);
+
+    return true;
 }
 
 void chip8::executeCycle()
 {
-    srand(time(0));
-
     // read 2-byte opcode at the address of program counter
     opcode = (memory[pc] << 8) | memory[pc + 1];
 
@@ -71,17 +97,17 @@ void chip8::executeCycle()
                 case 0x00E0:    // 0x00E0 clears the screen
                     for (int i = 0; i < GRAPHICS_PIXEL_RESOL; i++)
                         displayScreen[i] = 0;
+                    drawFlag = true;
                     pc += 2;
                     break;
                 
                 case 0x00EE:    // 0x00EE returns from a subroutine
                     pc = stack[--stackLevel];
+                    pc += 2;
                     break;
 
                 default:        // 0x0NNN call machine code routine at address NNN
-                    stack[stackLevel++] = pc + 2;
-                    pc = opcode & 0x0FFF;
-                    break;
+                    std::cerr << "Unknown opcode - " << opcode << " !\n";
             }
             break;
         }
@@ -92,7 +118,7 @@ void chip8::executeCycle()
         }
         case 0x2000:            // 0x2NNN CALLS a subroutine at NNN
         {   
-            stack[stackLevel++] = pc + 2;
+            stack[stackLevel++] = pc;
             pc = opcode & 0x0FFF;
             break;
         }
@@ -133,7 +159,7 @@ void chip8::executeCycle()
         case 0x7000:            // 0x7XNN adds NN to VX (carry flag is not set)
         {    
             uint8_t regNumber = (opcode & 0x0F00) >> 8;
-            V[regNumber] = V[regNumber] + opcode & 0x00FF;
+            V[regNumber] += opcode & 0x00FF;
             pc += 2;
             break;
         }
@@ -177,7 +203,7 @@ void chip8::executeCycle()
                 {    
                     uint8_t regNumberX = (opcode & 0x0F00) >> 8;
                     uint8_t regNumberY = (opcode & 0x00F0) >> 4;
-                    if ( V[regNumberX] > (0xFF - V[regNumberY]) )
+                    if ( V[regNumberY] > (0xFF - V[regNumberX]) )
                         V[0xF] = 1;
                     else 
                         V[0xF] = 0;
@@ -253,7 +279,7 @@ void chip8::executeCycle()
         case 0xC000:            // 0xCXNN sets VX to the result of a bitwise AND operation on a random number (Typically: 0 to 255) and NN
         {            
             uint8_t regNumberX = (opcode & 0x0F00) >> 8;
-            V[regNumberX] = (opcode & 0x00FF) & (uint8_t)(rand() % 255);
+            V[regNumberX] = (opcode & 0x00FF) & (uint8_t)(rand() % 0xFF);
             pc += 2;
             break;
         }
@@ -276,9 +302,9 @@ void chip8::executeCycle()
                 {
                     if ( (pixel & (0x80 >> xLine) ) != 0)
                     {
-                        if (displayScreen[ ( (y + yLine) * DISPLAY_HEIGHT_PIXELS + x + xLine) % GRAPHICS_PIXEL_RESOL] == 1)
+                        if (displayScreen[ (y + yLine) * DISPLAY_HEIGHT_PIXELS + x + xLine] == 1)
                             V[0xF] = 1;
-                        displayScreen[ ( (y + yLine) * DISPLAY_HEIGHT_PIXELS + x + xLine) % GRAPHICS_PIXEL_RESOL] ^= 1 /* (pixel & (0x80 >> xLine) ) */;
+                        displayScreen[ (y + yLine) * DISPLAY_HEIGHT_PIXELS + x + xLine] ^= 1 /* (pixel & (0x80 >> xLine) ) */;
                     }
                 }
             }
@@ -295,18 +321,16 @@ void chip8::executeCycle()
                 {
                     uint8_t regNumberX = (opcode & 0x0F00) >> 8;
                     if (key[ V[regNumberX] ] != 0)
-                        pc += 4;
-                    else
                         pc += 2;
+                    pc += 2;
                     break;
                 }
                 case 0x00A0:    // 0xEXA1 skips the next instruction if the key stored in VX is not pressed
                 {
                     uint8_t regNumberX = (opcode & 0x0F00) >> 8;
                     if (key[ V[regNumberX] ] == 0)
-                        pc += 4;
-                    else
                         pc += 2;
+                    pc += 2;
                     break;
                 }
             }
@@ -325,17 +349,22 @@ void chip8::executeCycle()
                 }
                 case 0x000A:    // 0xFX0A a key press is awaited, and then stored in VX
                 {
+                    bool keyPressed = false;
+
                     uint8_t regNumberX = (opcode & 0x0F00) >> 8;
                     for (int i = 0; i < KEYS_NUMBER; i++)
                     {
                         if (key[i] != 0)
                         {
                             V[regNumberX] = i;
-                            break;
+                            keyPressed = true;
                         }
-                        if (i == KEYS_NUMBER - 1)
-                            i = -1;
                     }
+
+                    if (!keyPressed)
+                        return;
+
+                    pc += 2;
                     break;
                 }
                 case 0x0015:    // 0xFX15 sets the delay timer to VX
@@ -355,6 +384,10 @@ void chip8::executeCycle()
                 case 0x001E:    // 0xFX1E adds VX to I (no carry flag)
                 {
                     uint8_t regNumberX = (opcode & 0x0F00) >> 8;
+                    if (I + V[regNumberX] > 0xFFF)
+                        V[0xF] = 1;
+                    else
+                        V[0xF] = 0;
                     I += V[regNumberX];
                     pc += 2;
                     break;
@@ -370,7 +403,7 @@ void chip8::executeCycle()
                 {
                     uint8_t regNumberX = (opcode & 0x0F00) >> 8;
                     memory[I + 0] = V[regNumberX] / 100;
-                    memory[I + 1] = V[regNumberX] / 10 % 10;
+                    memory[I + 1] = (V[regNumberX] / 10) % 10;
                     memory[I + 2] = V[regNumberX] % 10;
                     pc += 2;
                     break;
@@ -382,6 +415,7 @@ void chip8::executeCycle()
                     {
                         memory[I + i] = V[i];
                     }
+                    I += regNumberX + 1;
                     pc += 2;
                     break;
                 }
@@ -392,6 +426,7 @@ void chip8::executeCycle()
                     {
                         V[i] = memory[I + i];
                     }
+                    I += regNumberX + 1;
                     pc += 2;
                     break;
                 }

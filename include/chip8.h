@@ -71,6 +71,6 @@ public:
     ~chip8() { }
 
     void initialize();
-    void loadGame(const char* gameFileName);
+    bool loadGame(const char* gameFileName);
     void executeCycle();
 };

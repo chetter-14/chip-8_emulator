@@ -1,6 +1,9 @@
 #include "chip8.h"
 #include "GL/glut.h"
 #include <cstdio>
+#include <iostream>
+#include <chrono>
+#include <thread>
 
 
 // Display size
@@ -35,7 +38,11 @@ int main(int argc, char **argv)
 	}
 
 	// Load game
-	myChip8.loadGame(argv[1]);
+	if (!myChip8.loadGame(argv[1]))
+	{
+		std::cerr << "Failed to load the game.\n";
+		return 0;
+	};
 		
 	// Setup OpenGL
 	glutInit(&argc, argv);          
@@ -149,6 +156,7 @@ void display()
 		// Processed frame
 		myChip8.drawFlag = false;
 	}
+	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
 
 void reshape_window(GLsizei w, GLsizei h)
